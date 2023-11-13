@@ -108,6 +108,34 @@ def cerate_separation_maps(objects):
 	return duplicates
 
 
+
+# Object(id=579, x=0, y=168.75, editor_layer_1=2, groups={21}, z_order=1, rotation=90, color_1=2, z_layer=3, scale=0.75)
+# Object(id=579, x=0, y=198.75, editor_layer_1=2, groups={21}, z_order=1, rotation=90, color_1=2, z_layer=3, scale=0.75)
+# Object(id=917, x=0, y=183.75, editor_layer_1=2, groups={21}, z_order=1, color_1=2)
+# Object(id=579, x=0, y=116.25, editor_layer_1=2, groups={21, 22}, z_order=3, rotation=90, color_1=1, z_layer=3, scale=0.75)
+# Object(id=579, x=0, y=138.75, editor_layer_1=2, groups={21, 22}, z_order=3, rotation=90, color_1=1, z_layer=3, scale=0.75)
+# Object(id=579, x=0, y=63.75, editor_layer_1=2, z_order=5, rotation=90, color_1=2, z_layer=3, scale=0.75)
+# Object(id=579, x=0, y=86.25, editor_layer_1=2, z_order=5, rotation=90, color_1=2, z_layer=3, scale=0.75)
+# Object(id=579, x=0, y=11.25, editor_layer_1=2, groups={22}, z_order=7, rotation=90, color_1=1, z_layer=3, scale=0.75)
+# Object(id=579, x=0, y=33.75, editor_layer_1=2, groups={22}, z_order=7, rotation=90, color_1=1, z_layer=3, scale=0.75)
+# Object(id=917, x=0, y=93.75, editor_layer_1=2, z_order=11, color_1=1, z_layer=3)
+# Object(id=917, x=0, y=101.25, editor_layer_1=2, z_order=11, color_1=1, z_layer=3)
+# Object(id=579, x=0, y=41.25, editor_layer_1=2, groups={22}, z_order=9, rotation=90, color_1=2, z_layer=3, scale=0.75)
+# Object(id=917, x=0, y=153.75, editor_layer_1=2, groups={21, 22}, z_order=13, color_1=2)
+# Object(id=579, x=0, y=-168.75, editor_layer_1=2, groups={22, 23}, z_order=1, rotation=90, color_1=2, z_layer=3, scale=0.75)
+# Object(id=579, x=0, y=-116.25, editor_layer_1=2, groups={23}, z_order=3, rotation=90, color_1=1, z_layer=3, scale=0.75)
+# Object(id=579, x=0, y=-138.75, editor_layer_1=2, groups={23}, z_order=3, rotation=90, color_1=1, z_layer=3, scale=0.75)
+# Object(id=579, x=0, y=-63.75, editor_layer_1=2, groups={21, 22, 23}, z_order=5, rotation=90, color_1=2, z_layer=3, scale=0.75)
+# Object(id=579, x=0, y=-86.25, editor_layer_1=2, groups={21, 22, 23}, z_order=5, rotation=90, color_1=2, z_layer=3, scale=0.75)
+# Object(id=579, x=0, y=-11.25, editor_layer_1=2, groups={21, , 23}, z_order=7, rotation=90, color_1=1, z_layer=3, scale=0.75)
+# Object(id=579, x=0, y=-33.75, editor_layer_1=2, groups={21, , 23}, z_order=7, rotation=90, color_1=1, z_layer=3, scale=0.75)
+# Object(id=917, x=0, y=-93.75, editor_layer_1=2, groups={21, 22, 23}, z_order=11, color_1=1, z_layer=3)
+# Object(id=917, x=0, y=-101.25, editor_layer_1=2, groups={21, 22, 23}, z_order=11, color_1=1, z_layer=3)
+# Object(id=579, x=0, y=-41.25, editor_layer_1=2, groups={21, , 23}, z_order=9, rotation=90, color_1=2, z_layer=3, scale=0.75)
+# Object(id=917, x=0, y=-153.75, editor_layer_1=2, groups={23}, z_order=13, color_1=2)
+# Object(id=917, x=0, y=-183.75, editor_layer_1=2, groups={22, 23}, z_order=1, color_1=2)
+# Object(id=579, x=0, y=-198.75, editor_layer_1=2, groups={22, 23}, z_order=1, rotation=90, color_1=2, z_layer=3, scale=0.75)
+
 # Get all the individual lines for a specific strip
 def get_lines(pos, k, min_group):
 	pos = SCREEN_POS
@@ -529,7 +557,18 @@ def get_groups(num, min_group):
 
 	return groups
 
-
+def scale(objects, fac, center=(0,0)):
+	for obj in objects:
+		obj.x -= center[0]
+		obj.y -= center[0]
+	for obj in objects:
+		if obj.scale != None:
+			obj.scale *= fac
+		obj_.x *= scale
+		obj_.y *= scale
+	for obj in objects:
+		obj.x -= center[1]
+		obj.y -= center[1]
 
 if __name__ == "__main__":
 	arguments = sys.argv
