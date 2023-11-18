@@ -20,30 +20,30 @@ DEPTH = 32
 DEPTH_LOG = math.ceil(math.log(DEPTH, 2))
 DEPTH_LOG_POW = 2 ** DEPTH_LOG
 BINARY_GROUPS_COUNT = DEPTH_LOG
-# BINARY_ZERO_GROUPS_COUNT = 2
-# TOTAL_BINARY_COUNT = BINARY_GROUPS_COUNT + BINARY_ZERO_GROUPS_COUNT
+BINARY_ZERO_GROUPS_COUNT = 2
+TOTAL_BINARY_COUNT = BINARY_GROUPS_COUNT + BINARY_ZERO_GROUPS_COUNT
 
 
 # Stuff necessary to define the rendering behaviour
 HFoV = 90
 VFoV = 135
 NEAR_CLIPPING_PLANE = 0.01
-MIN_DEPTH_DISTANCE = 20
-# WALL_HEIGHT = 6
-# ANGLE_OFFSET = -0.15
+DEPTH_DISTANCE = 20
+WALL_HEIGHT = 6
+ANGLE_OFFSET = -0.15
 
 # Visual line variables
-LINE_WIDTH = 1/5
+LINE_WIDTH = 0.15
 LINE_HEIGHT = 9
 MIN_V = 0.3
 
 # Separations are necessary to bypass the 1k collider IDs limit
-SPLIT_COUNT = 3
+SEPARATIONS = 3
 WALL_COLLIDERS = [51, 53, 55, 57, 59]
 DEPTH_FAIL_COLLIDERS = [50, 52, 54, 56, 58, 60]
 ROTATION_CENTERS = [121, 123, 125, 127]
-SPLIT_COLLIDERS = [120, 122, 124, 126]
-SPLIT_OFFSET = (1800, 0)
+COLLIDER_SEPARATIONS = [120, 122, 124, 126]
+SEPARATION_OFFSET = (1800, 0)
 
 # Values for the texturing of the walls
 COLOR_COUNT = 3
@@ -60,17 +60,16 @@ Z_LAYERS_PER_STRIP = 2
 # Depth layering to prevent excessive lag
 # NOTE: technically it is no longer tied to depth,
 #  but fixing all of the references takes too much time.
-SUBFRAME_COUNT = 10
-SUBFRAME_GROUPS = [100, 101, 102, 103, 104, 105, 106, 107, 108, 109]
+DEPTH_LAYERS = 10
+DEPTH_LAYER_GROUPS = [100, 101, 102, 103, 104, 105, 106, 107, 108, 109]
 
 # Various position variables
 SCREEN_POS = (300, 150)
 CAMERA_POS = (2325, 1125)
-COLLISION_TRIGGER_POS = (315, 2265)
+TRIGGER_POS = (315, 2265)
 TEXTURE_TRIGGER_POS = (315, 5265)
 
-GROUPS_PER_STRIP = BINARY_GROUPS_COUNT
-# GROUPS_PER_STRIP = BINARY_GROUPS_COUNT + BINARY_ZERO_GROUPS_COUNT + COLOR_COUNT + 1
+GROUPS_PER_STRIP = BINARY_GROUPS_COUNT + BINARY_ZERO_GROUPS_COUNT + COLOR_COUNT + 1
 
 
 # Duplicate the map for the separation colliders
@@ -79,10 +78,10 @@ def cerate_separation_maps(objects):
 	for obj in objects:
 		if obj.id == 1816:
 			if obj.item_id == 1:
-				for s in range(SPLIT_COUNT):
+				for s in range(SEPARATIONS):
 					new_col = copy.deepcopy(obj)
-					new_col.x += SPLIT_OFFSET[0] * (s + 1)
-					new_col.y += SPLIT_OFFSET[1] * (s + 1)
+					new_col.x += SEPARATION_OFFSET[0] * (s + 1)
+					new_col.y += SEPARATION_OFFSET[1] * (s + 1)
 					new_col.item_id = WALL_COLLIDERS[s]
 					duplicates.append(new_col)
 			continue
@@ -91,19 +90,19 @@ def cerate_separation_maps(objects):
 				continue
 			if not 18 in obj.groups:
 				continue
-			for s in range(SPLIT_COUNT):
+			for s in range(SEPARATIONS):
 				new_dot = copy.deepcopy(obj)
-				new_dot.x += SPLIT_OFFSET[0] * (s + 1)
-				new_dot.y += SPLIT_OFFSET[1] * (s + 1)
+				new_dot.x += SEPARATION_OFFSET[0] * (s + 1)
+				new_dot.y += SEPARATION_OFFSET[1] * (s + 1)
 				new_dot.groups.remove(18)
 				new_dot.groups.add(ROTATION_CENTERS[s])
 				new_dot.groups.add(20)
 				duplicates.append(new_dot)
 			color_dot = copy.deepcopy(obj)
-			color_dot.x += SPLIT_OFFSET[0] * (-1)
-			color_dot.y += SPLIT_OFFSET[1] * (-1)
+			color_dot.x += SEPARATION_OFFSET[0] * (-1)
+			color_dot.y += SEPARATION_OFFSET[1] * (-1)
 			color_dot.groups.remove(18)
-			color_dot.groups.add(ROTATION_CENTERS[SPLIT_COUNT])
+			color_dot.groups.add(ROTATION_CENTERS[SEPARATIONS])
 			color_dot.groups.add(20)
 			duplicates.append(color_dot)
 	return duplicates
@@ -143,23 +142,72 @@ def get_lines(pos, k, min_group):
 	x_offset = (- WIDTH / 2 + k) * LINE_WIDTH * 30 + LINE_WIDTH * 30 / 2
 	y_offset = 0
 
-	# Fix this stuff
-
-	return []
-
-
-'''
-
 	depths = get_depths()
 
 
 	objects = []
 	# Iterating from farthest to closest
-	# for i in range(1, DEPTH):
+	for i in range(1, DEPTH):
 		groups = get_groups(i, min_group)
 
+		dist_to_camera = DEPTH - i - 1
 
+		height = min(1, 1 / (tan(radians(VFoV / 2)) * depths[i])) * WALL_HEIGHT * LINE_HEIGHT * 30
+		if k == 0:
+			print(height / 30)
 
+		y_offset = ANGLE_OFFSET * (height - 300)
+
+		(x, y) = (pos[0] + x_offset, pos[1] + y_offset)
+		top = y + height / 2
+		bottom = y - height / 2
+		strip_width = LINE_WIDTH * 30
+		# min_color = MIN_STRIP_COLOR + k * COLORS_PER_STRIP
+		min_color = MIN_STRIP_COLOR
+		min_z = MIN_STRIP_Z + (i // (2 ** BINARY_ZERO_GROUPS_COUNT)) * Z_LAYERS_PER_STRIP
+		# line = get_line((x, y - height/2), (x, y + height/2), LINE_WIDTH * 30)
+
+		divisions = [(x, top - fac * height) for fac in [0, 0.1, 0.26, 0.42, 0.58, 0.74, 0.9, 1]]
+
+		end1 = get_line(divisions[0], divisions[1], strip_width, (0, height * 0.75))
+		end2 = get_line(divisions[7], divisions[6], strip_width, (0, height * 0.75))
+		for obj in (end1 + end2):
+			obj.color_1 = min_color
+			obj.z_order = min_z + 0
+
+		middle = get_line(divisions[1], divisions[6], strip_width)
+		for obj in middle:
+			obj.color_1 = min_color + 1
+			obj.z_order = min_z + 1
+
+		tile1 = get_line(divisions[1], divisions[3], strip_width, (0, height * 0.15))
+		for obj in tile1:
+			obj.color_1 = min_color + 1
+			obj.z_order = min_z + 1
+
+		# tile2 = get_line(divisions[2], divisions[3], strip_width, (0, height * 0.15))
+		# for obj in tile2:
+		# 	obj.color_1 = min_color + 2
+		# 	obj.z_order = min_z + 2
+
+		tile3 = get_line(divisions[3], divisions[4], strip_width)
+		for obj in tile3:
+			obj.color_1 = min_color + 3
+			obj.z_order = min_z + 3
+
+		# tile4 = get_line(divisions[5], divisions[4], strip_width, (0, height * 0.15))
+		# for obj in tile4:
+		# 	obj.color_1 = min_color + 4
+		# 	obj.z_order = min_z + 2
+
+		tile5 = get_line(divisions[6], divisions[4], strip_width, (0, height * 0.15))
+		for obj in tile5:
+			obj.color_1 = min_color + 5
+			obj.z_order = min_z + 1
+
+		# line = end1 + tile1 + tile2 + tile3 + tile4 + tile5 + end2
+		# line = end1 + tile1 + tile3 + tile5 + end2
+		line = end1 + end2 + middle
 
 		# line = [Object(id=211, x=x, y=y, scale=strip_width/30, groups=set(groups), z_order=min_z)]
 
@@ -178,8 +226,7 @@ def get_lines(pos, k, min_group):
 		objects += line
 
 	return objects
-'''
-	
+
 def get_floor(pos):
 	depths = get_depths()
 	objects = []
@@ -194,12 +241,11 @@ def get_floor(pos):
 	for i in range(1, DEPTH):
 		dist_to_camera = DEPTH - i - 1
 
-		# height = min(1, 1 / (tan(radians(VFoV / 2)) * depths[i])) * WALL_HEIGHT * LINE_HEIGHT * 30
-		# y_offset = ANGLE_OFFSET * (height - 300)
-		y_offset = - 1 - i * LINE_WIDTH
-		# floor_level = pos[1] + y_offset - height / 2
+		height = min(1, 1 / (tan(radians(VFoV / 2)) * depths[i])) * WALL_HEIGHT * LINE_HEIGHT * 30
+		y_offset = ANGLE_OFFSET * (height - 300)
+		floor_level = pos[1] + y_offset - height / 2
 
-		y = y_offset - .5 * block_width - leeway
+		y = floor_level - .5 * block_width - leeway
 
 		layer = []
 		for x in x_values:
@@ -219,8 +265,8 @@ def get_floor(pos):
 
 # Get all of the colliders in the right order
 def get_colliders(pos, k):
-	max_width = 2 * MIN_DEPTH_DISTANCE * tan(radians(HFoV) / 2)
-	angle = atan((max_width * (k / (WIDTH - 1) - .5)) / MIN_DEPTH_DISTANCE)
+	max_width = 2 * DEPTH_DISTANCE * tan(radians(HFoV) / 2)
+	angle = atan((max_width * (k / (WIDTH - 1) - .5)) / DEPTH_DISTANCE)
 
 	depths = get_depths()
 
@@ -228,9 +274,9 @@ def get_colliders(pos, k):
 	for i in range(DEPTH):
 		x_i = depths[i]
 
-		depth_layer_id = floor(k / WIDTH * SUBFRAME_COUNT)
-		next_depth_layer_id = floor((k+1) / WIDTH * SUBFRAME_COUNT)
-		depth_layer_group = SUBFRAME_GROUPS[depth_layer_id]
+		depth_layer_id = floor(k / WIDTH * DEPTH_LAYERS)
+		next_depth_layer_id = floor((k+1) / WIDTH * DEPTH_LAYERS)
+		depth_layer_group = DEPTH_LAYER_GROUPS[depth_layer_id]
 
 		min_scale = 8
 		if i < DEPTH - 1:
@@ -238,7 +284,7 @@ def get_colliders(pos, k):
 		if i > 0:
 			min_scale = min(min_scale, depths[i-1] - x_i)
 
-		horiz_width = max_width * x_i / MIN_DEPTH_DISTANCE
+		horiz_width = max_width * x_i / DEPTH_DISTANCE
 		min_scale = min(horiz_width / (WIDTH - 1) - 0.25, min_scale)
 
 
@@ -255,12 +301,12 @@ def get_colliders(pos, k):
 		# x_pos = tan(angle) * max_width * 30
 		(x, y) = (pos[0] + x_pos, pos[1] + x_i * 30)
 
-		separation_id = k % SPLIT_COUNT
+		separation_id = k % SEPARATIONS
 		# separation_id = floor(k / WIDTH * SEPARATIONS)
-		x += SPLIT_OFFSET[0] * (separation_id + 1)		
-		y += SPLIT_OFFSET[1] * (separation_id + 1)
-		rotation_group = SPLIT_COLLIDERS[separation_id]
-		collider_id = COLLIDER_OFFSET + (k // SPLIT_COUNT) * DEPTH + i
+		x += SEPARATION_OFFSET[0] * (separation_id + 1)		
+		y += SEPARATION_OFFSET[1] * (separation_id + 1)
+		rotation_group = COLLIDER_SEPARATIONS[separation_id]
+		collider_id = COLLIDER_OFFSET + (k // SEPARATIONS) * DEPTH + i
 		# first_separation_k = ceil(separation_id * WIDTH / SEPARATIONS)
 		# collider_id = COLLIDER_OFFSET + (k - first_separation_k) * DEPTH + i
 
@@ -279,52 +325,76 @@ def get_colliders(pos, k):
 
 # Get the triggers (logic) that govern the rendering of the 3D scene
 def get_triggers(min_group, k):
-	pos = (COLLISION_TRIGGER_POS[0] + k * (DEPTH + 3) * 30, COLLISION_TRIGGER_POS[1])
-	min_collider = COLLIDER_OFFSET + (k // SPLIT_COUNT) * DEPTH
-	split_id = k % SPLIT_COUNT
-	wall_id = WALL_COLLIDERS[split_id]
+	pos = (TRIGGER_POS[0] + k * (DEPTH + COLOR_COUNT + 3) * 30, TRIGGER_POS[1])
+	min_collider = COLLIDER_OFFSET + (k // SEPARATIONS) * DEPTH
+	separation_id = k % SEPARATIONS
+	# separation_id = floor(k / WIDTH * SEPARATIONS)
+	# first_separation_k = ceil(separation_id * WIDTH / SEPARATIONS)
+	# min_collider = COLLIDER_OFFSET + (k - first_separation_k) * DEPTH
+	wall_id = WALL_COLLIDERS[separation_id]
 
-	subframe_id = floor(k / WIDTH * SUBFRAME_COUNT)
-	next_subframe_id = floor((k+1) / WIDTH * SUBFRAME_COUNT)
+	depth_layer_id = floor(k / WIDTH * DEPTH_LAYERS)
+	next_depth_layer_id = floor((k+1) / WIDTH * DEPTH_LAYERS)
 
 	objects = []
 
-	# Depth fail logic and initial toggle - to be deprecated
-	fail_collider_id = DEPTH_FAIL_COLLIDERS[split_id]
+	# Depth fail logic and initial toggle
+	# fail_collider_id = DEPTH_FAIL_COLLIDERS[k % SEPARATIONS]
+	fail_collider_id = DEPTH_FAIL_COLLIDERS[separation_id]
+
+	for j in range(TOTAL_BINARY_COUNT):
+		group = min_group + j
+		(x, y) = (pos[0] - 60 , pos[1] - j * 30)
+
+		# trigger = Object(id=1, x=x, y=y, groups={3}, scale=0.75, color_1 = 3)
+
+		trigger = Object(id=1815, x=x, y=y, groups={3},
+			target_group_id=group, item_id=fail_collider_id, block_b_id=min_collider, activate_group=False,
+			spawn_triggered=True, multi_trigger=True, is_active_trigger=True, scale=0.75)
+		objects.append(trigger)
+
+		toggle = Object(id=1049, x=x+30, y=y, groups={3},
+			target_group_id=group, spawn_triggered=True, multi_trigger=True, is_active_trigger=True)
+		objects.append(toggle)
+
 
 	# Normal rendering
 	for i in range(DEPTH):
-		groups_on = get_groups(DEPTH - i - 1, min_group)
+		groups_on = get_groups(i, min_group)
 		collider_id = min_collider + i
 	
-		for j in range(BINARY_GROUPS_COUNT):
+		for j in range(TOTAL_BINARY_COUNT):
 			group = min_group + j
 			is_on = group in groups_on
-			if not is_on: continue
-
 			(x, y) = (pos[0] + 30 * i , pos[1] - j * 30)
+			# trigger = Object(id=1, x=x, y=y, groups={3}, scale=0.75)
 			trigger = Object(id=1815, x=x, y=y, groups={3},
-				target_group_id=group, item_id=wall_id, block_b_id=collider_id, activate_group=True,
+				target_group_id=group, item_id=wall_id, block_b_id=collider_id, activate_group=is_on,
 				spawn_triggered=True, multi_trigger=True, is_active_trigger=True, scale=0.75)
+			if not is_on:
+				trigger.color_1 = 3
+			else:
+				trigger.color_1 = 3
+				trigger.color_1_hsv_enabled = True
+				trigger.color_1_hsv_values = HSV(h=120, s=1, v=1)
 			objects.append(trigger)
 
-
-		if i == DEPTH - 1 and (subframe_id != next_subframe_id or k == WIDTH):
-			trigger = Object(id=1815, x=x, y=y-30, groups={3},
-				target_group_id=SUBFRAME_GROUPS[subframe_id],
-				item_id=fail_collider_id, block_b_id=collider_id,
-				spawn_triggered=True, multi_trigger=True, is_active_trigger=True, scale=2)
-			objects.append(trigger)
+			if i == DEPTH - 1 and (depth_layer_id != next_depth_layer_id or k == WIDTH):
+				trigger = Object(id=1815, x=x, y=y-30, groups={3},
+					target_group_id=DEPTH_LAYER_GROUPS[depth_layer_id],
+					item_id=fail_collider_id, block_b_id=collider_id,
+					spawn_triggered=True, multi_trigger=True, is_active_trigger=True, scale=0.75)
+				objects.append(trigger)
 
 # Object(id=1049, x=225, y=195, groups={2},
 # spawn_triggered=True, multi_trigger=True, is_active_trigger=True, target_group_id=6)
 
 	# Color logic
-	pulse_groups = [min_group + BINARY_GROUPS_COUNT + c for c in range(COLOR_COUNT)]
-	prev_depth_layer_id = (subframe_id - 2) % SUBFRAME_COUNT
-	prev_depth_layer_group = SUBFRAME_GROUPS[prev_depth_layer_id]
+	pulse_groups = [min_group + TOTAL_BINARY_COUNT + c for c in range(COLOR_COUNT)]
+	prev_depth_layer_id = (depth_layer_id - 2) % DEPTH_LAYERS
+	prev_depth_layer_group = DEPTH_LAYER_GROUPS[prev_depth_layer_id]
 
-	coloring_group = min_group + BINARY_GROUPS_COUNT + COLOR_COUNT
+	coloring_group = min_group + TOTAL_BINARY_COUNT + COLOR_COUNT
 
 	toggle_triggers = []
 
@@ -350,14 +420,15 @@ def get_triggers(min_group, k):
 			target_group_id=pulse_group, item_id=color_collider, block_b_id=collider_id, activate_group=True,
 			spawn_triggered=True, multi_trigger=True, is_active_trigger=True, scale=0.5)
 
-		# objects.append(trigger)
-		
-	# objects += toggle_triggers
+		objects.append(trigger)
+		# objects.append(pulse)
+
+	objects += toggle_triggers
 
 	(x, y) = (pos[0] - 60, pos[1] - 4 * 30)
 	toggle_on = Object(id=1049, x=x, y=y, groups={prev_depth_layer_group}, activate_group=True,
 			target_group_id=coloring_group, spawn_triggered=True, multi_trigger=True, is_active_trigger=True)
-	# objects.append(toggle_on)
+	objects.append(toggle_on)
 
 	# toggle_off = Object(id=1049, x=x - 30, y=y, groups=set(pulse_groups),
 	# 		target_group_id=coloring_group, spawn_triggered=True, multi_trigger=True, is_active_trigger=True)
@@ -368,8 +439,8 @@ def get_triggers(min_group, k):
 
 # Get all of the colliders that are used to render the textures
 def get_color_colliders(pos, k):
-	max_width = 2 * MIN_DEPTH_DISTANCE * tan(radians(HFoV) / 2)
-	angle = atan((max_width * (k / (WIDTH - 1) - .5)) / MIN_DEPTH_DISTANCE)
+	max_width = 2 * DEPTH_DISTANCE * tan(radians(HFoV) / 2)
+	angle = atan((max_width * (k / (WIDTH - 1) - .5)) / DEPTH_DISTANCE)
 
 	depths = get_depths()
 
@@ -377,8 +448,8 @@ def get_color_colliders(pos, k):
 	for i in range(DEPTH - 1, -1, -1):
 		x_i = depths[i]
 
-		depth_layer_id = (floor(k / WIDTH * SUBFRAME_COUNT)) % SUBFRAME_COUNT
-		depth_layer_group = SUBFRAME_GROUPS[depth_layer_id]
+		depth_layer_id = (floor(k / WIDTH * DEPTH_LAYERS)) % DEPTH_LAYERS
+		depth_layer_group = DEPTH_LAYER_GROUPS[depth_layer_id]
 
 		min_scale = 8
 		if i < DEPTH - 1:
@@ -386,7 +457,7 @@ def get_color_colliders(pos, k):
 		if i > 0:
 			min_scale = min(min_scale, depths[i-1] - x_i)
 
-		horiz_width = max_width * x_i / MIN_DEPTH_DISTANCE
+		horiz_width = max_width * x_i / DEPTH_DISTANCE
 		min_scale = min(horiz_width / (WIDTH - 1) - 0.25, min_scale)
 
 
@@ -402,9 +473,9 @@ def get_color_colliders(pos, k):
 		(x, y) = (pos[0] + x_pos, pos[1] + x_i * 30)
 
 		separation_id = -1
-		x += SPLIT_OFFSET[0] * separation_id		
-		y += SPLIT_OFFSET[1] * separation_id
-		rotation_group = SPLIT_COLLIDERS[SPLIT_COUNT]
+		x += SEPARATION_OFFSET[0] * separation_id		
+		y += SEPARATION_OFFSET[1] * separation_id
+		rotation_group = COLLIDER_SEPARATIONS[SEPARATIONS]
 		collider_id = COLLIDER_OFFSET + k
 
 		groups = {2, 20, rotation_group, depth_layer_group}
@@ -450,10 +521,10 @@ def get_depths():
 
 	min_depth_step = 0.055
 
-	if MIN_DEPTH_DISTANCE - min_depth < min_depth_step * (DEPTH - 1):
+	if DEPTH_DISTANCE - min_depth < min_depth_step * (DEPTH - 1):
 		raise Exception("Depth cannot fit the colliders. Increase depth distance or decrease collider count.")
 
-	excess_step = (MIN_DEPTH_DISTANCE - min_depth) / (DEPTH - 1) - min_depth_step
+	excess_step = (DEPTH_DISTANCE - min_depth) / (DEPTH - 1) - min_depth_step
 	step_increase = excess_step * 2 / (DEPTH - 2)
 	step = min_depth_step
 	current_depth = min_depth
@@ -477,7 +548,10 @@ def get_groups(num, min_group):
 
 	groups = []
 	for i in range(bin_length):
-		if b_flipped[i] == 1:
+		digit = b_flipped[i]
+		if digit == 0 and i < BINARY_ZERO_GROUPS_COUNT:
+				groups.append(min_group + BINARY_GROUPS_COUNT + i)
+		elif digit == 1:
 			groups.append(min_group + i)
 
 
@@ -490,8 +564,8 @@ def scale(objects, fac, center=(0,0)):
 	for obj in objects:
 		if obj.scale != None:
 			obj.scale *= fac
-		obj.x *= scale
-		obj.y *= scale
+		obj_.x *= scale
+		obj_.y *= scale
 	for obj in objects:
 		obj.x -= center[1]
 		obj.y -= center[1]
@@ -503,12 +577,16 @@ if __name__ == "__main__":
 
 	
 	if len(arguments) < 2 or arguments[1] != 'void':
-		# This ensures that there are enough groups specified for the collider splits
-		splits_needed = SPLIT_COUNT + 1 - len(ROTATION_CENTERS)
-		if splits_needed > 0:
-			print("{} more splits needed!".format(splits_needed))
+		# This ensures that there
+		separations_needed = SEPARATIONS + 1 - len(ROTATION_CENTERS)
+		if separations_needed > 0:
+			print("{} more separations needed!".format(separations_needed))
 			quit()
 		add_objects(editor, cerate_separation_maps(editor.get_objects()))
 		add_objects(editor, get_screen())
 
 	save_changes(editor, db, local_levels)
+
+# Object(id=1006, x=165, y=165, groups={3}, spawn_triggered=True, multi_trigger=True,
+# is_active_trigger=True, target_group_id=10, hold_time=1, pulse_mode=<PulseMode.HSV:1>,
+# exclusive=True, copied_color_id=2)
